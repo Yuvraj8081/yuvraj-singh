@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="yuvraj report" content="width=device-width, initial-scale=1.0">
+  <title>PDF to A4 Converter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto Mono', monospace;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 {
+      margin-bottom: 1rem;
+      color: #00ffe1;
+    }
+    input, select, button {
+      margin: 0.5rem;
+      padding: 0.6rem;
+      background: #1e1e1e;
+      border: 1px solid #00ffe1;
+      border-radius: 8px;
+      color: #fff;
+    }
+    button:hover {
+      background: #00ffe1;
+      color: #000;
+      cursor: pointer;
+    }
+    .container {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>YUVRAJ Micro PDF to A4 Converter</h1>
+    <input type="file" id="pdfUpload" accept="application/pdf">
+    <input type="number" id="pagesPerA4" min="1" max="16" value="4" placeholder="Pages per A4">
+    <button onclick="convertPDF()">Convert & Download</button>
+    <p id="status"></p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script>
+    async function convertPDF() {
+      const fileInput = document.getElementById('pdfUpload');
+      const pagesPerA4 = parseInt(document.getElementById('pagesPerA4').value);
+      const status = document.getElementById('status');
+      if (!fileInput.files[0] || !pagesPerA4) {
+        alert("Please upload a PDF and choose how many pages per A4.");
+        return;
+      }
+
+      status.textContent = 'Processing...';
+
+      const file = await fileInput.files[0].arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(file);
+      const newPdf = await PDFLib.PDFDocument.create();
+      const totalPages = pdfDoc.getPageCount();
+      const pages = await newPdf.embedPages(
+        await Promise.all(Array.from({ length: totalPages }, (_, i) => pdfDoc.getPage(i)))
+      );
+
+      const pagesPerRow = Math.ceil(Math.sqrt(pagesPerA4));
+      const pagesPerCol = Math.ceil(pagesPerA4 / pagesPerRow);
+
+      for (let i = 0; i < pages.length; i += pagesPerA4) {
+        const a4Page = newPdf.addPage([595.28, 841.89]); // A4 size in points (72 dpi)
+        const pageWidth = 595.28 / pagesPerRow;
+        const pageHeight = 841.89 / pagesPerCol;
+
+        for (let j = 0; j < pagesPerA4; j++) {
+          const index = i + j;
+          if (index >= pages.length) break;
+          const x = (j % pagesPerRow) * pageWidth;
+          const y = 941.89 - Math.floor(j / pagesPerRow + 1) * pageHeight;
+
+          a4Page.drawPage(pages[index], {
+            x,
+            y,
+            width: pageWidth,
+            height: pageHeight
+          });
+        }
+      }
+
+      const pdfBytes = await newPdf.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'converted_micro_pdf.pdf';
+      link.click();
+
+      status.textContent = 'Download started.';
+    }
+  </script>
+</body>
+</html>
+
